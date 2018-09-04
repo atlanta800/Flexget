@@ -106,11 +106,19 @@ class UrlRewriteTorrentleech(object):
         request_headers = {'User-Agent': 'curl/7.54.0'}
         rss_key = config['rss_key']
 
+        try:
+            from cfscrape import create_scraper
+            scraper = create_scraper(sess=task.requests)
+        except ImportError as e:
+            log.verbose('Failed to import cloudflare-scrape, falling back to '
+                        'builtin requests: %s' % str(e))
+            scraper = task.requests
+
         # build the form request:
         data = {'username': config['username'], 'password': config['password']}
         # POST the login form:
         try:
-            login = task.requests.post('https://www.torrentleech.org/user/account/login/', data=data,
+            login = scraper.post('https://www.torrentleech.org/user/account/login/', data=data,
                                        headers=request_headers, allow_redirects=True)
         except RequestException as e:
             raise PluginError('Could not connect to torrentleech: %s', str(e))
@@ -137,7 +145,7 @@ class UrlRewriteTorrentleech(object):
                    quote(query.encode('utf-8')) + filter_url)
             log.debug('Using %s as torrentleech search url', url)
 
-            results = task.requests.get(url, headers=request_headers, cookies=login.cookies).json()
+            results = scraper.get(url, headers=request_headers, cookies=login.cookies).json()
 
             for torrent in results['torrentList']:
                 entry = Entry()
